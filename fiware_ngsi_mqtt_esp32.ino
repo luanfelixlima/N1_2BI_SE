@@ -1,28 +1,27 @@
-//Autor: Fábio Henrique Cabrini
-//Resumo: Esse programa possibilita ligar e desligar o led onboard, além de mandar o status para o Broker MQTT possibilitando o Helix saber
-//se o led está ligado ou desligado.
-//Revisões:
-//Rev1: 26-08-2023 Código portado para o ESP32 e para realizar a leitura de luminosidade e publicar o valor em um tópico aprorpiado do broker 
-//Autor Rev1: Lucas Demetrius Augusto 
-//Rev2: 28-08-2023 Ajustes para o funcionamento no FIWARE Descomplicado
-//Autor Rev2: Fábio Henrique Cabrini
-//Rev3: 1-11-2023 Refinamento do código e ajustes para o funcionamento no FIWARE Descomplicado
-//Autor Rev3: Fábio Henrique Cabrini
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <DHT.h>
 
 // Configurações - variáveis editáveis
-const char* default_SSID = "sua_rede_wifi"; // Nome da rede Wi-Fi
-const char* default_PASSWORD = "sua_senha_wifi"; // Senha da rede Wi-Fi
-const char* default_BROKER_MQTT = "ip_host_fiware"; // IP do Broker MQTT
+const char* default_SSID = "AndroidAPDC48"; // Nome da rede Wi-Fi
+const char* default_PASSWORD = "pkri87080."; // Senha da rede Wi-Fi
+const char* default_BROKER_MQTT = "20.206.204.120"; // IP do Broker MQTT
 const int default_BROKER_PORT = 1883; // Porta do Broker MQTT
-const char* default_TOPICO_SUBSCRIBE = "/TEF/lamp001/cmd"; // Tópico MQTT de escuta
-const char* default_TOPICO_PUBLISH_1 = "/TEF/lamp001/attrs"; // Tópico MQTT de envio de informações para Broker
-const char* default_TOPICO_PUBLISH_2 = "/TEF/lamp001/attrs/l"; // Tópico MQTT de envio de informações para Broker
-const char* default_ID_MQTT = "fiware_001"; // ID MQTT
+const char* default_TOPICO_SUBSCRIBE = "/TEF/lamp06x/cmd"; // Tópico MQTT de escuta
+const char* default_TOPICO_PUBLISH_1 = "/TEF/lamp06x/attrs"; // Tópico MQTT de envio de informações para Broker
+const char* default_TOPICO_PUBLISH_2 = "/TEF/lamp06x/attrs/l"; // Tópico MQTT de envio de informações para Broker
+const char* default_TOPICO_PUBLISH_3 = "/TEF/lamp06x/attrs/h";
+const char* default_TOPICO_PUBLISH_4 = "/TEF/lamp06x/attrs/t";
+const char* default_ID_MQTT = "fiware_06x"; // ID MQTT
 const int default_D4 = 2; // Pino do LED onboard
 // Declaração da variável para o prefixo do tópico
-const char* topicPrefix = "lamp001";
+const char* topicPrefix = "lamp06x";
+
+// DEFINIÇÕES PARA O DHT
+const int dht_pin = 12;
+
+#define DHT_TYPE DHT22
+DHT dht(dht_pin, DHT_TYPE);
 
 // Variáveis para configurações editáveis
 char* SSID = const_cast<char*>(default_SSID);
@@ -32,12 +31,29 @@ int BROKER_PORT = default_BROKER_PORT;
 char* TOPICO_SUBSCRIBE = const_cast<char*>(default_TOPICO_SUBSCRIBE);
 char* TOPICO_PUBLISH_1 = const_cast<char*>(default_TOPICO_PUBLISH_1);
 char* TOPICO_PUBLISH_2 = const_cast<char*>(default_TOPICO_PUBLISH_2);
+char* TOPICO_PUBLISH_3 = const_cast<char*>(default_TOPICO_PUBLISH_3);
+char* TOPICO_PUBLISH_4 = const_cast<char*>(default_TOPICO_PUBLISH_4);
 char* ID_MQTT = const_cast<char*>(default_ID_MQTT);
 int D4 = default_D4;
 
 WiFiClient espClient;
 PubSubClient MQTT(espClient);
 char EstadoSaida = '0';
+
+// Variáveis globais para armazenar os valores atuais de temperatura, umidade e luminosidade
+float globalTemperature;
+float globalHumidity;
+int globalLuminosity;
+
+// Variáveis para armazenar a soma e o contador das leituras
+float tempSum = 0;
+float humSum = 0;
+int lumSum = 0;
+int numSamples = 0;
+
+// Temporizadores
+unsigned long lastSerialPrintTime = 0;
+unsigned long lastMqttPublishTime = 0;
 
 void initSerial() {
     Serial.begin(115200);
@@ -58,6 +74,7 @@ void initMQTT() {
 }
 
 void setup() {
+    dht.begin();
     InitOutput();
     initSerial();
     initWiFi();
@@ -68,9 +85,13 @@ void setup() {
 
 void loop() {
     VerificaConexoesWiFIEMQTT();
-    EnviaEstadoOutputMQTT();
     handleLuminosity();
+    handleDHT();
+    EnviaEstadoOutputMQTT();
+    checkConditions();
+    printAndPublishAverages();
     MQTT.loop();
+    delay(1000);
 }
 
 void reconectWiFi() {
@@ -123,17 +144,21 @@ void VerificaConexoesWiFIEMQTT() {
 }
 
 void EnviaEstadoOutputMQTT() {
-    if (EstadoSaida == '1') {
-        MQTT.publish(TOPICO_PUBLISH_1, "s|on");
-        Serial.println("- Led Ligado");
-    }
+    unsigned long currentTime = millis();
 
-    if (EstadoSaida == '0') {
-        MQTT.publish(TOPICO_PUBLISH_1, "s|off");
-        Serial.println("- Led Desligado");
+    if (currentTime - lastSerialPrintTime >= 10000)
+    {
+      if (EstadoSaida == '1') {
+          MQTT.publish(TOPICO_PUBLISH_1, "s|on");
+          Serial.println("- Led Ligado");
+      }
+
+      if (EstadoSaida == '0') {
+          MQTT.publish(TOPICO_PUBLISH_1, "s|off");
+          Serial.println("- Led Desligado");
+      }
+      Serial.println("- Estado do LED onboard enviado ao broker!");
     }
-    Serial.println("- Estado do LED onboard enviado ao broker!");
-    delay(1000);
 }
 
 void InitOutput() {
@@ -167,8 +192,105 @@ void handleLuminosity() {
     const int potPin = 34;
     int sensorValue = analogRead(potPin);
     int luminosity = map(sensorValue, 0, 4095, 0, 100);
-    String mensagem = String(luminosity);
-    Serial.print("Valor da luminosidade: ");
-    Serial.println(mensagem.c_str());
-    MQTT.publish(TOPICO_PUBLISH_2, mensagem.c_str());
+    // Serial.print("Valor da luminosidade: ");
+    // Serial.println(luminosity);
+
+    lumSum += luminosity;
+    numSamples++;
+
+    globalLuminosity = luminosity;
+}
+
+void handleDHT() {
+    float temperature = dht.readTemperature();
+    float humidity = dht.readHumidity();
+
+    // Serial.print("Valor da Temperatura: ");
+    // Serial.println(temperature);
+    // Serial.print("Valor da Humidade: ");
+    // Serial.println(humidity);
+
+    tempSum += temperature;
+    humSum += humidity;
+
+    globalTemperature = temperature;
+    globalHumidity = humidity;
+}
+
+void checkConditions() {
+    bool outOfRange = false;
+
+    // Verificar faixa de temperatura
+    if (globalTemperature <= 15 || globalTemperature >= 25) {
+        outOfRange = true;
+    }
+
+    // Verificar faixa de luminosidade
+    if (globalLuminosity <= 0 || globalLuminosity >= 30) {
+        outOfRange = true;
+    }
+
+    // Verificar faixa de umidade
+    if (globalHumidity <= 30 || globalHumidity >= 50) {
+        outOfRange = true;
+    }
+
+    // Acender ou apagar o LED com base nas condições
+    if (outOfRange) {
+        digitalWrite(D4, HIGH);
+        EstadoSaida = '1';
+    } else {
+        digitalWrite(D4, LOW);
+        EstadoSaida = '0';
+    }
+}
+
+
+void printAndPublishAverages() {
+    unsigned long currentTime = millis();
+
+    // Imprimir os logs a cada 5 segundos
+    if (currentTime - lastSerialPrintTime >= 5000) {
+        lastSerialPrintTime = currentTime;
+        
+        Serial.print("Leitura atual - Temperatura: ");
+        Serial.print(globalTemperature);
+        Serial.print(" ºC, Umidade: ");
+        Serial.print(globalHumidity);
+        Serial.print(" %, Luminosidade: ");
+        Serial.print(globalLuminosity);
+        Serial.println(" %");
+    }
+
+    // Enviar a média via MQTT a cada 10 segundos
+    if (currentTime - lastMqttPublishTime >= 10000) {
+        lastMqttPublishTime = currentTime;
+
+        // Calcular a média
+        float avgTemp = tempSum / numSamples;
+        float avgHum = humSum / numSamples;
+        int avgLum = lumSum / numSamples;
+
+        // Enviar a média via MQTT
+        String tempMsg = "Temperatura média: " + String(avgTemp) + " ºC";
+        String humMsg = "Umidade média: " + String(avgHum) + " %";
+        String lumMsg = "Luminosidade média: " + String(avgLum) + " %";
+
+        MQTT.publish(TOPICO_PUBLISH_2, String(avgLum).c_str());
+        MQTT.publish(TOPICO_PUBLISH_3, String(avgHum).c_str());
+        MQTT.publish(TOPICO_PUBLISH_4, String(avgTemp).c_str());
+
+        // Exibir a média no Serial Monitor com destaque
+        Serial.println("========== Média dos Últimos 60s ==========");
+        Serial.println(tempMsg);
+        Serial.println(humMsg);
+        Serial.println(lumMsg);
+        Serial.println("===========================================");
+
+        // Reiniciar os acumuladores e o contador de amostras
+        tempSum = 0;
+        humSum = 0;
+        lumSum = 0;
+        numSamples = 0;
+    }
 }
