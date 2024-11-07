@@ -94,8 +94,9 @@ Sempre que um valor coletado estiver fora do intervalo esperado para cada variá
 
 6. **Alerta de Anomalia**
    - Se algum valor estiver fora do intervalo, o LED acende e a anomalia é visível no gráfico.
-Vide esquema abaixo:
-![image](https://github.com/user-attachments/assets/ee45bd73-7c83-484e-bc2e-ede10a0efd4f)
+     
+**Vide esquema abaixo:**
+          ![image](https://github.com/user-attachments/assets/ee45bd73-7c83-484e-bc2e-ede10a0efd4f)
 
 ---
 
@@ -192,6 +193,9 @@ Whenever a collected value is out of the expected range for each variable (e.g.,
 
 - The LED lights up when one or more of the collected values fall outside the specified range.
 - Additionally, on the **Dashboard**, the anomaly is visually indicated on the graph, allowing the user to easily spot when values are outside the safe range.
+
+**See the diagram below:**
+          ![image](https://github.com/user-attachments/assets/53505361-aa67-44c7-ba84-b61dbf276b27)
 
 ---
 
