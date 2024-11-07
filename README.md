@@ -106,3 +106,116 @@ Sempre que um valor coletado estiver fora do intervalo esperado para cada variá
 ## Conclusão
 
 Este projeto fornece uma solução prática para monitoramento remoto de variáveis ambientais, como temperatura, umidade e luminosidade, utilizando o ESP32 e a plataforma Azure. Com a integração de sensores, MQTT, armazenamento no MongoDB e a visualização no Dashboard, é possível não apenas monitorar dados em tempo real, mas também garantir que o sistema emita alertas visuais e gráficos para anomalias de forma eficiente.
+
+---
+
+# Project: Data Collection and Cloud Upload with ESP32 and Azure
+
+## Project Objective
+
+This project aims to collect **temperature**, **humidity**, and **light** data from a **DHT11** and **LDR** sensors connected to an **ESP32**. After the data is collected, it is uploaded to the cloud (Azure), processed, and stored in a **MongoDB** database. A dashboard allows the user to view the last 30 records and provides alerts when any variable goes out of the specified range.
+
+## Components Used
+
+- **ESP32**: Microcontroller with Wi-Fi and Bluetooth connectivity.
+- **DHT11**: Temperature and humidity sensor.
+- **LDR**: Light-dependent resistor (light sensor).
+- **ESP32 On-Board LED**: Indicator to alert when temperature, humidity, or light values are out of range.
+- **Microsoft Azure**: Cloud platform for data storage and analysis.
+- **MQTT**: Messaging protocol for data transmission.
+- **MongoDB**: NoSQL database for storing the collected data.
+- **SHT-Comm**: Used for data transmission and dashboard creation.
+
+---
+
+## Project Workflow
+
+### 1. Sensor Data Collection
+
+- **DHT11**: The temperature and humidity sensor is read periodically by the ESP32, which returns the temperature (°C) and relative humidity (%).
+- **LDR**: The light sensor is read by the ESP32, determining the light intensity in the environment, usually expressed as a variable resistance.
+
+These sensors are connected to the ESP32 and their values are read on each collection cycle, with the data being temporarily stored in memory.
+
+### 2. Average Calculation
+
+Before sending the data to the cloud, the average of the values collected over the last 60 seconds (1 minute) is calculated. This average helps reduce rapid fluctuations and ensures that the data sent to the cloud represents a more stable measure.
+
+- Temperature Average (°C)
+- Humidity Average (%)
+- Light Average (lux or resistance, depending on the configuration)
+
+### 3. Sending Data to the Cloud
+
+The data is sent to **Microsoft Azure** using the **MQTT** protocol. MQTT is efficient for lightweight and reliable messaging between devices and the cloud.
+
+**Steps for sending data to the cloud**:
+- The ESP32 connects to the Wi-Fi network and establishes a connection with the MQTT broker.
+- The calculated data (average for the last minute) is sent to the configured MQTT topic.
+- Azure processes the received data and stores it in a **MongoDB** database for later queries and analysis.
+
+### 4. Data Storage in MongoDB
+
+After receiving the data via MQTT, Azure processes and stores this information in a **MongoDB** database. Each entry in the database contains:
+- Timestamp (date and time of the reading)
+- Average temperature
+- Average humidity
+- Average light intensity
+
+These data entries are available for queries and report generation in the **Dashboard**.
+
+### 5. Dashboard Generation
+
+- The **Dashboard** is a graphical interface that displays the last 30 collected records.
+- The Dashboard is generated using the **SHT-Comm** tool, which integrates with MongoDB and enables real-time data visualization.
+- On the dashboard, graphs are displayed for each variable (temperature, humidity, light) showing their average values over time.
+
+### 6. Anomaly Alert
+
+Whenever a collected value is out of the expected range for each variable (e.g., temperature above 35°C or below 15°C, humidity above 90%, light below 10 lux), the ESP32 turns on the **on-board LED** as a visual alert.
+
+- The LED lights up when one or more of the collected values fall outside the specified range.
+- Additionally, on the **Dashboard**, the anomaly is visually indicated on the graph, allowing the user to easily spot when values are outside the safe range.
+
+---
+
+## Flow Diagram
+
+1. **Sensor Reading** (DHT11 and LDR)
+   - The ESP32 collects the temperature, humidity, and light data.
+
+2. **Average Calculation**
+   - The averages of the collected variables over the last 60 seconds are calculated.
+
+3. **Sending Data**
+   - The data is sent via MQTT to the Azure platform.
+
+4. **Data Storage in MongoDB**
+   - The data is stored in MongoDB with a timestamp.
+
+5. **Dashboard Visualization**
+   - The Dashboard displays the last 30 records and real-time graphs.
+
+6. **Anomaly Alert**
+   - If any value goes out of range, the LED lights up and the anomaly is visible on the graph.
+
+---
+
+## Technical Considerations
+
+### MQTT (Message Queuing Telemetry Transport)
+
+**MQTT** is a lightweight messaging protocol ideal for devices with limited resources, like the ESP32. It sends data efficiently and in real-time to the cloud, using topics and messages. In this project, MQTT facilitates continuous data transmission to Azure.
+
+### Azure IoT Hub and MongoDB
+
+- **Azure IoT Hub** manages communication between devices (ESP32) and the cloud, providing a secure gateway for device data.
+- **MongoDB** is used for storing data on Azure, as it is a flexible NoSQL database capable of handling large volumes of unstructured data, making it easy to query in real-time.
+
+---
+
+## Conclusion
+
+This project provides a practical solution for remotely monitoring environmental variables such as temperature, humidity, and light intensity, using the ESP32 and the Azure platform. By integrating sensors, MQTT, storage in MongoDB, and real-time dashboard visualization, it is possible not only to monitor data but also to ensure the system visually alerts and displays anomalies through graphs efficiently.
+
+---
