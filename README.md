@@ -42,6 +42,13 @@ Os dados são enviados para a plataforma **Microsoft Azure** utilizando o protoc
 - O ESP32 se conecta à rede Wi-Fi e estabelece uma conexão com o broker MQTT.
 - Os dados calculados (média do último minuto) são enviados para o tópico MQTT configurado.
 - O Azure processa os dados recebidos e os armazena em um banco de dados **MongoDB** para posterior consulta e análise.
+- Na qual os intervalos são:
+  
+   Faixa de Temperatura: 15 < t < 25 ºC
+
+   Faixa de Luminosidade: 0 < l < 30%
+
+   Faixa de Umidade: 30% < u < 50%
 
 ### 4. Armazenamento dos Dados no MongoDB
 
@@ -87,6 +94,8 @@ Sempre que um valor coletado estiver fora do intervalo esperado para cada variá
 
 6. **Alerta de Anomalia**
    - Se algum valor estiver fora do intervalo, o LED acende e a anomalia é visível no gráfico.
+Vide esquema abaixo:
+![image](https://github.com/user-attachments/assets/ee45bd73-7c83-484e-bc2e-ede10a0efd4f)
 
 ---
 
@@ -153,6 +162,13 @@ The data is sent to **Microsoft Azure** using the **MQTT** protocol. MQTT is eff
 - The ESP32 connects to the Wi-Fi network and establishes a connection with the MQTT broker.
 - The calculated data (average for the last minute) is sent to the configured MQTT topic.
 - Azure processes the received data and stores it in a **MongoDB** database for later queries and analysis.
+- In which the intervals are:
+  
+   Temperature Range: 15 < t < 25 ºC
+
+   Light Intensity Range: 0 < l < 30%
+
+   Humidity Range: 30% < u < 50%
 
 ### 4. Data Storage in MongoDB
 
