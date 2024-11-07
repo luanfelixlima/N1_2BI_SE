@@ -11,7 +11,7 @@ void printLocalTime() {
     return;
   }
 
-  // Ajustar o deslocamento horário para UTC -3 (AST/BRT)
+  // Ajustar o deslocammento horário para UTC -3 (AST/BRT)
   timeinfo.tm_hour -= 3;
   if (timeinfo.tm_hour < 0) {
     timeinfo.tm_hour += 24;  // Garantir que o valor de hora seja positivo
